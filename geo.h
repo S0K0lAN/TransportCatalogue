@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <vector>
 
 struct Coordinates {
     double lat;
@@ -22,4 +23,16 @@ inline double ComputeDistance(Coordinates from, Coordinates to) {
     return acos(sin(from.lat * dr) * sin(to.lat * dr)
                 + cos(from.lat * dr) * cos(to.lat * dr) * cos(abs(from.lng - to.lng) * dr))
         * 6371000;
+}
+
+// Compute distance between the coords in vector
+inline double ComputeDistance(const std::vector<Coordinates>& points) {
+    double sum = 0.0;
+    if (points.size() < 2) {
+        return sum;
+    }
+    for (size_t i = 1; i < points.size(); ++i) {
+        sum += ComputeDistance(points[i - 1], points[i]);
+    }
+    return sum;
 }
