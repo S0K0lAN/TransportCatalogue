@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iterator>
+#include <list>
 
 /**
  * Парсит строку вида "10.123,  -30.1837" и возвращает пару координат (широта, долгота)
@@ -103,5 +104,25 @@ void InputReader::ParseLine(std::string_view line) {
 }
 
 void InputReader::ApplyCommands([[maybe_unused]] TransportCatalogue& catalogue) const {
- //через буффер   
+    // create and fill stop buffer
+    std::list<Stop> stops;
+    std::list<std::pair<std::string_view, std::string_view>> buses;
+    for(auto& command : commands_) {
+        if(command.command == "Stop"){
+            stops.push_back({command.id, ParseCoordinates(command.description)});
+        }
+        else if(command.command == "Bus"){
+            buses.push_back({command.id, command.description});
+        }
+    }
+
+    // At first add all stops
+    for(const auto& stop : stops){
+        catalogue.AddStop(std::move(stop));
+    }
+
+    // Add buses
+    for(const auto& bus : buses){
+        catalogue.AddBus(bus.first, ParseRoute(bus.second));
+    }
 }

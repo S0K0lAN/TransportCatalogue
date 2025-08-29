@@ -3,41 +3,13 @@
 
 #include <string>
 #include <vector>
-#include <cstdint>
-#include <set>
-
-struct Stop {
-    std::string name;
-    Coordinates coords;
-};
-
-struct Bus {
-    std::string name;
-    std::vector<Stop*> stops;
-};
-
-struct BusInfo {
-    size_t stops_count;
-    size_t unique_stops_count;
-    double_t route_length;
-};
-
-class DistanceHasher {
-public:
-    size_t operator()(const std::pair<Stop*, Stop*>& key){
-        uintptr_t addr1 = reinterpret_cast<uintptr_t>(key.first), 
-                  addr2 = reinterpret_cast<uintptr_t>(key.second);
-
-        return addr1 * hash_multiplier_ + addr2;
-    }
-
-    static const size_t hash_multiplier_ = 17;
-};
+#include <unordered_set>
 
 // You can add bus only after you added all stops
 void TransportCatalogue::AddBus(std::string_view name, const std::vector<std::string_view>& stopnames) {
     Bus bus{
-        .name = std::string(name)
+        .name = std::string(name),
+        .stops = {}
     };
 
     // For each stopname finds stop
@@ -58,10 +30,20 @@ void TransportCatalogue::AddBus(std::string_view name, const std::vector<std::st
 
 void TransportCatalogue::AddStop(std::string_view name, const Coordinates& coords) {
     stops_.push_back(Stop{ std::string(name), coords });
-    stopname_to_stop_[name] = &stops_.back();
+    stopname_to_stop_[stops_.back().name] = &stops_.back();
 }
 
-Bus* TransportCatalogue::FindBusByName(std::string_view name) {
+void TransportCatalogue::AddStop(const Stop& stop){
+    stops_.push_back(stop);
+    stopname_to_stop_[stops_.back().name] = &stops_.back();
+}
+
+void TransportCatalogue::AddStop(Stop&& stop){
+    stops_.push_back(std::move(stop));
+    stopname_to_stop_[stops_.back().name] = &stops_.back();
+}
+
+Bus* TransportCatalogue::FindBusByName(std::string_view name) const {
     try{
         Bus* bus = busname_to_bus_.at(name);
         return bus;
@@ -71,7 +53,7 @@ Bus* TransportCatalogue::FindBusByName(std::string_view name) {
     }
 }
 
-Stop* TransportCatalogue::FindStopByName(std::string_view name) {
+Stop* TransportCatalogue::FindStopByName(std::string_view name) const {
     try{
         Stop* stop = stopname_to_stop_.at(name);
         return stop;
@@ -81,19 +63,15 @@ Stop* TransportCatalogue::FindStopByName(std::string_view name) {
     }
 }
 
-BusInfo TransportCatalogue::GetBusInfo(std::string_view name) {
+// exception: std::out_of_range
+BusInfo TransportCatalogue::GetBusInfo(std::string_view name) const {
     const Bus* bus;
-    try {
-        bus = busname_to_bus_.at(name);
-    } 
-    catch (std::out_of_range&) {
-        throw;
-    }
+    bus = busname_to_bus_.at(name);
 
     BusInfo info;
     info.stops_count = bus->stops.size();
 
-    std::set<Stop*> unique_stops(bus->stops.begin(), bus->stops.end());
+    std::unordered_set<Stop*> unique_stops(bus->stops.begin(), bus->stops.end());
     info.unique_stops_count = unique_stops.size();
 
     std::vector<Coordinates> coords;
